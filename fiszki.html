@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiszki • Angielski-Polski</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Playfair+Display:wght@700&amp;display=swap');
+        
+        :root {
+            --primary: 234 179 8;
+        }
+        
+        .tail-container {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        
+        .title-font {
+            font-family: 'Playfair Display', sans-serif;
+        }
+
+        .flashcard {
+            perspective: 1200px;
+            height: 420px;
+        }
+
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
+        }
+
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flashcard-front,
+        .flashcard-back {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .flashcard-front {
+            background: linear-gradient(145deg, #f8fafc, #e0f2fe);
+            color: #1e2937;
+        }
+
+        .flashcard-back {
+            background: linear-gradient(145deg, #1e2937, #334155);
+            color: #f1f5f9;
+            transform: rotateY(180deg);
+        }
+
+        .word {
+            font-size: 3.5rem;
+            line-height: 1.1;
+            font-weight: 700;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="tail-container bg-zinc-950 text-slate-200 min-h-screen">
+    <div class="max-w-2xl mx-auto p-6">
+        <!-- Nagłówek -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="title-font text-4xl font-bold text-yellow-400 tracking-tight">FISZKI</h1>
+                <p class="text-slate-400 text-lg">Angielski → Polski • 100 słówek startowych</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="speakWord()" 
+                        class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-2xl font-medium transition-all active:scale-95">
+                    <span class="text-2xl">🔊</span>
+                    <span>Posłuchaj</span>
+                </button>
+                <button onclick="shuffleDeck()" 
+                        class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 px-6 py-3 rounded-2xl font-medium transition-all active:scale-95">
+                    <span class="text-xl">🔀</span>
+                    <span>Tasuj</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Licznik -->
+        <div class="flex justify-between items-center mb-4 px-2">
+            <div id="counter" class="text-2xl font-mono font-semibold text-yellow-400">1 / 100</div>
+            <div onclick="resetDeck()" 
+                 class="text-xs uppercase tracking-widest text-slate-500 hover:text-slate-400 cursor-pointer flex items-center gap-1">
+                <span>↺</span>
+                <span>Resetuj talię</span>
+            </div>
+        </div>
+
+        <!-- Karta -->
+        <div id="flashcard" onclick="flipCard()" 
+             class="flashcard w-full cursor-pointer mx-auto">
+            <div id="flashcard-inner" class="flashcard-inner rounded-3xl">
+                <!-- Przód --> 
+                <div class="flashcard-front">
+                    <div class="text-center">
+                        <div class="uppercase text-xs tracking-[3px] text-emerald-600 font-medium mb-3">ANGIELSKI</div>
+                        <div id="front-text" class="word capitalize"></div>
+                    </div>
+                </div>
+                
+                <!-- Tył -->
+                <div class="flashcard-back">
+                    <div class="text-center">
+                        <div class="uppercase text-xs tracking-[3px] text-amber-400 font-medium mb-3">POLSKI</div>
+                        <div id="back-text" class="word capitalize"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Przyciski akcji -->
+        <div class="flex gap-4 mt-10">
+            <button onclick="markAsKnown()" 
+                    class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-3xl text-xl font-semibold active:scale-95 transition-all flex items-center justify-center gap-3">
+                <span>✅</span>
+                ZNAM TO
+            </button>
+            
+            <button onclick="nextCard()" 
+                    class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-5 rounded-3xl text-xl font-semibold active:scale-95 transition-all">
+                DALEJ →
+            </button>
+        </div>
+
+        <!-- Poprzednia -->
+        <div class="flex justify-center mt-6">
+            <button onclick="prevCard()" 
+                    class="text-slate-400 hover:text-white flex items-center gap-2 text-sm">
+                ← Poprzednia fiszka
+            </button>
+        </div>
+
+        <!-- Komunikat sukcesu -->
+        <div id="congrats" class="hidden mt-12 text-center">
+            <div class="text-7xl mb-6">🎉</div>
+            <h2 class="text-4xl font-bold mb-4 title-font">Gratulacje!</h2>
+            <p class="text-xl text-slate-400 mb-8">Opanowałeś wszystkie 100 słówek!</p>
+            <button onclick="resetDeck()" 
+                    class="bg-yellow-400 text-zinc-950 px-10 py-5 rounded-3xl text-2xl font-semibold hover:bg-yellow-300 transition-all">
+                Rozpocznij od nowa
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // === 100 SŁÓWEK STARTOWYCH ===
+        // Aby dodać nowe słówka – po prostu dodaj obiekt na końcu tablicy!
+        // Format: {en: "english word", pl: "polskie tłumaczenie"}
+        const allFlashcards = [
+            {en: "goodbye", pl: "do widzenia"},
+            {en: "thank you", pl: "dziękuję"},
+            {en: "please", pl: "proszę"},
+            {en: "yes", pl: "tak"},
+            {en: "no", pl: "nie"},
+            {en: "apple", pl: "jabłko"},
+            {en: "banana", pl: "banan"},
+            {en: "orange", pl: "pomarańcza"},
+            {en: "cat", pl: "kot"},
+            {en: "dog", pl: "pies"},
+            {en: "bird", pl: "ptak"},
+            {en: "fish", pl: "ryba"},
+            {en: "house", pl: "dom"},
+            {en: "apartment", pl: "mieszkanie"},
+            {en: "room", pl: "pokój"},
+            {en: "kitchen", pl: "kuchnia"},
+            {en: "bathroom", pl: "łazienka"},
+            {en: "bed", pl: "łóżko"},
+            {en: "table", pl: "stół"},
+            {en: "chair", pl: "krzesło"},
+            {en: "book", pl: "książka"},
+            {en: "pen", pl: "długopis"},
+            {en: "pencil", pl: "ołówek"},
+            {en: "computer", pl: "komputer"},
+            {en: "phone", pl: "telefon"},
+            {en: "television", pl: "telewizor"},
+            {en: "car", pl: "samochód"},
+            {en: "bus", pl: "autobus"},
+            {en: "train", pl: "pociąg"},
+            {en: "bicycle", pl: "rower"},
+            {en: "mother", pl: "matka"},
+            {en: "father", pl: "ojciec"},
+            {en: "brother", pl: "brat"},
+            {en: "sister", pl: "siostra"},
+            {en: "son", pl: "syn"},
+            {en: "daughter", pl: "córka"},
+            {en: "friend", pl: "przyjaciel"},
+            {en: "school", pl: "szkoła"},
+            {en: "teacher", pl: "nauczyciel"},
+            {en: "student", pl: "uczeń"},
+            {en: "water", pl: "woda"},
+            {en: "milk", pl: "mleko"},
+            {en: "bread", pl: "chleb"},
+            {en: "cheese", pl: "ser"},
+            {en: "meat", pl: "mięso"},
+            {en: "vegetable", pl: "warzywo"},
+            {en: "fruit", pl: "owoc"},
+            {en: "rice", pl: "ryż"},
+            {en: "pasta", pl: "makaron"},
+            {en: "happy", pl: "szczęśliwy"},
+            {en: "sad", pl: "smutny"},
+            {en: "angry", pl: "zły"},
+            {en: "tired", pl: "zmęczony"},
+            {en: "hungry", pl: "głodny"},
+            {en: "thirsty", pl: "spragniony"},
+            {en: "big", pl: "duży"},
+            {en: "small", pl: "mały"},
+            {en: "tall", pl: "wysoki"},
+            {en: "short", pl: "niski"},
+            {en: "run", pl: "biec"},
+            {en: "walk", pl: "chodzić"},
+            {en: "jump", pl: "skakać"},
+            {en: "swim", pl: "pływać"},
+            {en: "eat", pl: "jeść"},
+            {en: "drink", pl: "pić"},
+            {en: "sleep", pl: "spać"},
+            {en: "read", pl: "czytać"},
+            {en: "write", pl: "pisać"},
+            {en: "speak", pl: "mówić"},
+            {en: "listen", pl: "słuchać"},
+            {en: "see", pl: "widzieć"},
+            {en: "hear", pl: "słyszeć"},
+            {en: "sun", pl: "słońce"},
+            {en: "moon", pl: "księżyc"},
+            {en: "star", pl: "gwiazda"},
+            {en: "tree", pl: "drzewo"},
+            {en: "flower", pl: "kwiat"},
+            {en: "mountain", pl: "góra"},
+            {en: "river", pl: "rzeka"},
+            {en: "sea", pl: "morze"},
+            {en: "one", pl: "jeden"},
+            {en: "two", pl: "dwa"},
+            {en: "three", pl: "trzy"},
+            {en: "four", pl: "cztery"},
+            {en: "five", pl: "pięć"},
+            {en: "red", pl: "czerwony"},
+            {en: "blue", pl: "niebieski"},
+            {en: "green", pl: "zielony"},
+            {en: "yellow", pl: "żółty"},
+            {en: "black", pl: "czarny"},
+            {en: "white", pl: "biały"},
+            {en: "today", pl: "dzisiaj"},
+            {en: "tomorrow", pl: "jutro"},
+            {en: "yesterday", pl: "wczoraj"},
+            {en: "week", pl: "tydzień"},
+            {en: "month", pl: "miesiąc"},
+            {en: "year", pl: "rok"},
+            {en: "time", pl: "czas"},
+            {en: "love", pl: "miłość"}
+        ];
+
+        let deck = [...allFlashcards];
+        let currentIndex = 0;
+        let isFlipped = false;
+
+        const flashcard = document.getElementById('flashcard');
+        const inner = document.getElementById('flashcard-inner');
+        const frontText = document.getElementById('front-text');
+        const backText = document.getElementById('back-text');
+        const counterEl = document.getElementById('counter');
+        const congratsEl = document.getElementById('congrats');
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function updateCounter() {
+            counterEl.textContent = `${currentIndex + 1} / ${deck.length}`;
+        }
+
+        function showCard() {
+            if (deck.length === 0) {
+                showCongrats();
+                return;
+            }
+            
+            frontText.textContent = deck[currentIndex].en;
+            backText.textContent = deck[currentIndex].pl;
+            
+            // Reset flip
+            flashcard.classList.remove('flipped');
+            isFlipped = false;
+            
+            updateCounter();
+        }
+
+        function flipCard() {
+            flashcard.classList.toggle('flipped');
+            isFlipped = !isFlipped;
+        }
+
+        function speakWord() {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(deck[currentIndex].en);
+                utterance.lang = 'en-GB';
+                utterance.rate = 0.95;
+                utterance.pitch = 1.05;
+                speechSynthesis.speak(utterance);
+            } else {
+                alert("Twoja przeglądarka nie obsługuje odczytu tekstu na głos.");
+            }
+        }
+
+        function nextCard() {
+            if (deck.length === 0) return;
+            currentIndex = (currentIndex + 1) % deck.length;
+            showCard();
+        }
+
+        function prevCard() {
+            if (deck.length === 0) return;
+            currentIndex = (currentIndex - 1 + deck.length) % deck.length;
+            showCard();
+        }
+
+        function markAsKnown() {
+            if (deck.length === 0) return;
+            
+            // Usuwamy bieżącą fiszkę
+            deck.splice(currentIndex, 1);
+            
+            if (deck.length === 0) {
+                showCongrats();
+            } else {
+                // Jeśli usunęliśmy ostatnią, cofamy indeks
+                if (currentIndex >= deck.length) {
+                    currentIndex = deck.length - 1;
+                }
+                showCard();
+            }
+        }
+
+        function showCongrats() {
+            flashcard.classList.add('hidden');
+            congratsEl.classList.remove('hidden');
+        }
+
+        function shuffleDeck() {
+            if (deck.length === 0) return;
+            shuffle(deck);
+            currentIndex = 0;
+            showCard();
+        }
+
+        function resetDeck() {
+            deck = [...allFlashcards];
+            currentIndex = 0;
+            flashcard.classList.remove('hidden');
+            congratsEl.classList.add('hidden');
+            shuffle(deck); // opcjonalnie tasujemy przy resecie
+            showCard();
+        }
+
+        // Inicjalizacja
+        window.onload = function() {
+            // Tailwind już załadowany
+            shuffle(deck); // startowe tasowanie
+            showCard();
+            
+            // Dodatkowe klawisze klawiatury
+            document.addEventListener('keydown', function(e) {
+                if (e.key === " " || e.key === "Enter") {
+                    e.preventDefault();
+                    flipCard();
+                }
+                if (e.key === "ArrowRight") {
+                    nextCard();
+                }
+                if (e.key === "ArrowLeft") {
+                    prevCard();
+                }
+                if (e.key === "k" || e.key === "K") {
+                    markAsKnown();
+                }
+                if (e.key === "s" || e.key === "S") {
+                    speakWord();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
